@@ -4,6 +4,10 @@ namespace SothbeysKillerApi.Controllers;
 
 public record AuctionCreateRequest(string Title, DateTime Start, DateTime Finish);
 
+public record AuctionUpdateRequest(DateTime Start, DateTime Finish);
+
+public record AuctionResponse(Guid Id, string Title, DateTime Start, DateTime Finish);
+
 public class Auction
 {
     public Guid Id { get; set; }
@@ -36,12 +40,33 @@ public class AuctionController : ControllerBase
     [Route("[action]")]
     public IActionResult Future()
     {
-        return Ok("its alive!");
+        var auctions = _storage
+            .Where(a => a.Start > DateTime.Now)
+            .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
+            .OrderByDescending(a => a.Start)
+            .ToList();
+        
+        return Ok(auctions);
     }
 
     [HttpPost]
     public IActionResult Create(AuctionCreateRequest request)
     {
+        if (request.Title.Length < 3 || request.Title.Length > 255)
+        {
+            return BadRequest();
+        }
+
+        if (request.Start < DateTime.Now)
+        {
+            return BadRequest();
+        }
+
+        if (request.Finish <= request.Start)
+        {
+            return BadRequest();
+        }
+        
         var auction = new Auction()
         {
             Id = Guid.NewGuid(),
@@ -53,5 +78,71 @@ public class AuctionController : ControllerBase
         _storage.Add(auction);
         
         return Ok(new { Id = auction.Id });
+    }
+
+    [HttpGet("{id:guid}")]
+    public IActionResult GetById(Guid id)
+    {
+        var auction = _storage.FirstOrDefault(a => a.Id == id);
+
+        if (auction is not null)
+        {
+            var response = new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish);
+            
+            return Ok(response);
+        }
+        
+        return NotFound();
+    }
+
+    [HttpPut("{id:guid}")]
+    public IActionResult Update(Guid id, AuctionUpdateRequest request)
+    {
+        var auction = _storage.FirstOrDefault(a => a.Id == id);
+        
+        if (auction is null)
+        {
+            return NotFound();
+        }
+
+        if (auction.Start <= DateTime.Now)
+        {
+            return BadRequest();
+        }
+        
+        if (request.Start < DateTime.Now)
+        {
+            return BadRequest();
+        }
+
+        if (request.Finish <= request.Start)
+        {
+            return BadRequest();
+        }
+
+        auction.Start = request.Start;
+        auction.Finish = request.Finish;
+        
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}")]
+    public IActionResult Delete(Guid id)
+    {
+        var auction = _storage.First(a => a.Id == id);
+        
+        if (auction is null)
+        {
+            return NotFound();
+        }
+        
+        if (auction.Start <= DateTime.Now)
+        {
+            return BadRequest();
+        }
+
+        _storage.Remove(auction);
+
+        return NoContent();
     }
 }
