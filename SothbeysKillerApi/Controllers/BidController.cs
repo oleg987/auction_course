@@ -3,13 +3,15 @@ using SothbeysKillerApi.Services;
 
 namespace SothbeysKillerApi.Controllers;
 
-public record PlaceBidOnLotRequest(Guid LotId, string UserName, decimal Price);
+public record CreateBidRequest(Guid LotId, Guid UserId, decimal Price);
 
 public record BidResponse(string UserName, decimal Price, DateTime Timestamp);
 
 public class Bid
 {
+    public Guid Id { get; set; }
     public Guid LotId { get; set; }
+    public Guid UserId { get; set; }
     public string UserName { get; set; }
     public decimal Price { get; set; }
     public DateTime Timestamp { get; set; }
@@ -31,16 +33,16 @@ public class BidController : ControllerBase
         }
         catch (NullReferenceException)
         {
-            return NotFound();
+            return BadRequest();
         }
     }
     
     [HttpPost]
-    public IActionResult PlaceBidOnLot(PlaceBidOnLotRequest request)
+    public IActionResult PlaceBidOnLot(CreateBidRequest request)
     {
         try
         {
-            var response = _bidService.PlaceBidOnLot(request);
+            var response = _bidService.CreateBid(request);
             return Ok(response);
         }
         catch (ArgumentException)

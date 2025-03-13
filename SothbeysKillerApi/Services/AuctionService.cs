@@ -15,11 +15,11 @@ public interface IAuctionService
 
 public class AuctionService : IAuctionService
 {
-    private static List<Auction> _storage = [];
+    public static List<Auction> auctionsStorage = [];
 
     public List<AuctionResponse> GetPastAuctions()
     {
-        var auctions = _storage
+        var auctions = auctionsStorage
             .Where(a => a.Finish < DateTime.Now)
             .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
             .OrderByDescending(a => a.Start)
@@ -30,7 +30,7 @@ public class AuctionService : IAuctionService
     
     public List<AuctionResponse> GetActiveAuctions()
     {
-        var auctions = _storage
+        var auctions = auctionsStorage
             .Where(a => a.Start < DateTime.Now && a.Finish > DateTime.Now)
             .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
             .OrderByDescending(a => a.Start)
@@ -41,7 +41,7 @@ public class AuctionService : IAuctionService
     
     public List<AuctionResponse> GetFutureAuctions()
     {
-        var auctions = _storage
+        var auctions = auctionsStorage
             .Where(a => a.Start > DateTime.Now)
             .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
             .OrderByDescending(a => a.Start)
@@ -75,14 +75,14 @@ public class AuctionService : IAuctionService
             Finish = request.Finish
         };
         
-        _storage.Add(auction);
+        auctionsStorage.Add(auction);
 
         return auction.Id;
     }
 
     public AuctionResponse GetAuctionById(Guid id)
     {
-        var auction = _storage.FirstOrDefault(a => a.Id == id);
+        var auction = auctionsStorage.FirstOrDefault(a => a.Id == id);
 
         if (auction is not null)
         {
@@ -96,7 +96,7 @@ public class AuctionService : IAuctionService
 
     public void UpdateAuction(Guid id, AuctionUpdateRequest request)
     {
-        var auction = _storage.FirstOrDefault(a => a.Id == id);
+        var auction = auctionsStorage.FirstOrDefault(a => a.Id == id);
         
         if (auction is null)
         {
@@ -124,7 +124,7 @@ public class AuctionService : IAuctionService
 
     public void DeleteAuction(Guid id)
     {
-        var auction = _storage.FirstOrDefault(a => a.Id == id);
+        var auction = auctionsStorage.FirstOrDefault(a => a.Id == id);
         
         if (auction is null)
         {
@@ -136,7 +136,7 @@ public class AuctionService : IAuctionService
             throw new ArgumentException();
         }
 
-        _storage.Remove(auction);
+        auctionsStorage.Remove(auction);
 
     }
 }

@@ -6,55 +6,93 @@ namespace SothbeysKillerApi.Services;
 public interface IBidService
 {
     List<BidResponse> GetBidsByLotId(Guid lotId);
-    BidResponse PlaceBidOnLot(PlaceBidOnLotRequest request);
+    BidResponse CreateBid(CreateBidRequest request);
 }
 
 public class BidService : IBidService
 {
-    private static List<Bid> _storage = [];
+    private static List<Bid> _bidsStorage = [];
     
     public List<BidResponse> GetBidsByLotId(Guid lotId)
     {
-        var bid = _storage
-            .Where(bid => bid.LotId == lotId)
-            .Select(bid => new BidResponse(bid.UserName, bid.Price, bid.Timestamp))
-            .OrderBy(bid => bid.Timestamp)
+        var lot = LotService.lotsStorage.FirstOrDefault(lot => lot.Id == lotId);
+        if (lot is null)
+        {
+            throw new ArgumentException();
+        }
+        
+        var auction = AuctionService.auctionsStorage.FirstOrDefault(auction => auction.Id == lot.AuctionId);
+        if (auction is null)
+        {
+            throw new ArgumentException();
+        }
+        
+        if (auction.Start >= DateTime.Now)
+        {
+            throw new ArgumentException();
+        }
+        
+        var bids = _bidsStorage.Where(bid => bid.LotId == lotId).ToList();
+        
+        if (!bids.Any())
+        {
+            return new List<BidResponse>();
+        }
+        
+        var bidResponses = bids
+            .Select(bid =>
+            {
+                var user = UserService.usersStorage.FirstOrDefault(user => user.Id == bid.UserId);
+                return new BidResponse(user?.Name ?? "Невідомий користувач", bid.Price, bid.Timestamp);
+            })
             .ToList();
 
-        if (bid.Count == 0)
-        {
-            throw new NullReferenceException();
-            
-        }
-            
-        return bid;
+        return bidResponses;
     }
+
     
     [HttpPost]
-    public BidResponse PlaceBidOnLot(PlaceBidOnLotRequest request)
+    public BidResponse CreateBid(CreateBidRequest request)
     {
-        if (request.UserName.Length < 3 || request.UserName.Length > 255)
+        var lot = LotService.lotsStorage.FirstOrDefault(lot => lot.Id == request.LotId);
+        if (lot is null)
         {
             throw new ArgumentException();
         }
 
-        if (request.Price <= 0)
+        var user = UserService.usersStorage.FirstOrDefault(user => user.Id == request.UserId);
+        if (user is null)
+        {
+            throw new ArgumentException();
+        }
+        
+        var lastBidPrice = _bidsStorage
+            .Where(bid => bid.LotId == request.LotId)
+            .Select(bid => bid.Price)
+            .DefaultIfEmpty(0)
+            .Max();
+        
+        if (request.Price < lot.StartPrice)
+        {
+            throw new ArgumentException();
+        }
+
+        if (request.Price < lastBidPrice + lot.PriceStep)
         {
             throw new ArgumentException();
         }
         
         var bid = new Bid()
         {
-            LotId = request.LotId, 
-            UserName = request.UserName, 
-            Price = request.Price, 
-            Timestamp = DateTime.UtcNow
+            Id = Guid.NewGuid(),
+            LotId = request.LotId,
+            Price = request.Price,
+            UserId = request.UserId
         };
+
+        _bidsStorage.Add(bid);
         
-        _storage.Add(bid);
-        
-        var response = new BidResponse(bid.UserName, bid.Price, bid.Timestamp);
-        
-        return response;
+        return new BidResponse(user.Name, request.Price, DateTime.Now);
     }
+
 }
