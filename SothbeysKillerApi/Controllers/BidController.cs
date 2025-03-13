@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using SothbeysKillerApi.Services;
 
 namespace SothbeysKillerApi.Controllers;
 
@@ -18,46 +19,33 @@ public class Bid
 [Route("api/v1/[controller]")]
 public class BidController : ControllerBase
 {
-    private static List<Bid> _storage = [];
+    private readonly IBidService _bidService = new BidService();
     
     [HttpGet("{lotId:guid}")]
-    public IActionResult GetById(Guid lotId)
+    public IActionResult GetBidsByLotId(Guid lotId)
     {
-        var bid = _storage
-            .Where(bid => bid.LotId == lotId)
-            .Select(bid => new BidResponse(bid.UserName, bid.Price, bid.Timestamp))
-            .OrderBy(bid => bid.Timestamp)
-            .ToList();
-
-        if (bid.Count == 0)
+        try
+        {
+            var bids = _bidService.GetBidsByLotId(lotId);
+            return Ok(bids);
+        }
+        catch (NullReferenceException)
         {
             return NotFound();
-            
         }
-            
-        return Ok(bid);
     }
     
     [HttpPost]
     public IActionResult PlaceBidOnLot(PlaceBidOnLotRequest request)
     {
-        if (request.UserName.Length < 3 || request.UserName.Length > 255)
+        try
+        {
+            var response = _bidService.PlaceBidOnLot(request);
+            return Ok(response);
+        }
+        catch (ArgumentException)
         {
             return BadRequest();
         }
-        
-        var bid = new Bid()
-        {
-            LotId = request.LotId, 
-            UserName = request.UserName, 
-            Price = request.Price, 
-            Timestamp = DateTime.UtcNow
-        };
-        
-        _storage.Add(bid);
-        
-        var response = new BidResponse(bid.UserName, bid.Price, bid.Timestamp);
-        
-        return Ok(response);
     }
 }
