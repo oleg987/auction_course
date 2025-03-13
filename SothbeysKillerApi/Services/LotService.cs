@@ -14,11 +14,11 @@ public interface ILotService
 
 public class LotService : ILotService
 {
-    public static List<Lot> _lotsStorage = [];
+    public static List<Lot> lotsStorage = [];
     
     public LotResponse LotInfoById(Guid lotId)
     {
-        var lot = _lotsStorage
+        var lot = lotsStorage
             .Where(lot => lot.Id == lotId)
             .Select(lot => new LotResponse(lot.Id, lot.AuctionId, lot.Title, lot.Description, lot.StartPrice, lot.PriceStep))
             .FirstOrDefault();
@@ -38,7 +38,7 @@ public class LotService : ILotService
             throw new ArgumentException("No auction found");
         }
         
-        var lots = _lotsStorage
+        var lots = lotsStorage
             .Where(lot => lot.AuctionId == auctionId)
             .Select(lot => new LotResponse(lot.Id, lot.AuctionId, lot.Title, lot.Description, lot.StartPrice, lot.PriceStep))
             .OrderBy(lot => lot.Title)
@@ -69,14 +69,14 @@ public class LotService : ILotService
             AuctionId = request.AuctionId
         };
         
-        _lotsStorage.Add(lot);
+        lotsStorage.Add(lot);
 
         return lot.Id;
     }
 
     public void ModifyLotById(ModifyLotRequest request)
     {
-        var selectedLot = _lotsStorage.FirstOrDefault(lot => lot.Id == request.Id);
+        var selectedLot = lotsStorage.FirstOrDefault(lot => lot.Id == request.Id);
 
         if (selectedLot is null)
         {
@@ -88,7 +88,7 @@ public class LotService : ILotService
             throw new ArgumentException("No matching auction found.");
         }
         
-        _lotsStorage.Remove(selectedLot);
+        lotsStorage.Remove(selectedLot);
         
         var lot = new Lot()
         {
@@ -100,12 +100,12 @@ public class LotService : ILotService
             AuctionId = selectedLot.AuctionId
         };
         
-        _lotsStorage.Add(lot);
+        lotsStorage.Add(lot);
     }
 
     public void DeleteLotById(Guid lotId)
     {
-        var selectedLot = _lotsStorage.FirstOrDefault(lot => lot.Id == lotId);
+        var selectedLot = lotsStorage.FirstOrDefault(lot => lot.Id == lotId);
 
         if (selectedLot is null)
         {
@@ -117,6 +117,6 @@ public class LotService : ILotService
             throw new ArgumentException("No matching auction found.");
         }
         
-        _lotsStorage.Remove(selectedLot);
+        lotsStorage.Remove(selectedLot);
     }
 }
