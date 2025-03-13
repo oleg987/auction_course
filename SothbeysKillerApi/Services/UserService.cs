@@ -42,6 +42,12 @@ public class UserService : IUserService
     
     public LoginUserResponse LoginUser(LoginUserRequest request)
     {
+        if (request.Email.Length < 3 || request.Email.Length > 255 || request.Password.Length < 3 ||
+            request.Password.Length > 255)
+        {
+            throw new ArgumentException();
+        }
+        
         if (usersStorage.All(u => u.Email != request.Email))
         {
             throw new UnauthorizedAccessException();

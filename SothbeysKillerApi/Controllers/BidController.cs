@@ -31,7 +31,7 @@ public class BidController : ControllerBase
             var bids = _bidService.GetBidsByLotId(lotId);
             return Ok(bids);
         }
-        catch (NullReferenceException)
+        catch (ArgumentException)
         {
             return BadRequest();
         }

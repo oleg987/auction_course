@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Mvc;
 using SothbeysKillerApi.Services;
 
 namespace SothbeysKillerApi.Controllers;
 
 public record CreateLotRequest(Guid AuctionId, string Title, string Description, decimal StartPrice, decimal PriceStep);
-public record ModifyLotRequest(Guid Id, string Title, string Description, decimal StartPrice, decimal PriceStep);
+public record ModifyLotRequest(string Title, string Description, decimal StartPrice, decimal PriceStep);
 public record LotResponse(Guid Id, Guid AuctionId, string Title, string Description, decimal StartPrice, decimal PriceStep);
 public class Lot
 {
@@ -36,7 +37,7 @@ public class LotController : ControllerBase
         }
     }
     
-    [HttpGet]
+    [HttpGet("auction/{auctionId:guid}")]
     public IActionResult GetLotsByAuctionId(Guid auctionId)
     {
         try
@@ -55,12 +56,13 @@ public class LotController : ControllerBase
         
     }
 
-    public IActionResult CreateLot(CreateLotRequest request)
+    [HttpPost]
+    public IActionResult CreateLot([Required] CreateLotRequest request)
     {
         try
         {
-            var lot = _lotService.CreateLot(request);
-            return Ok(lot);
+            var lotId = _lotService.CreateLot(request);
+            return Ok(new { Id = lotId });
         }
         catch (ArgumentException)
         {
@@ -68,11 +70,12 @@ public class LotController : ControllerBase
         }
     }
 
-    public IActionResult ModifyLotById(ModifyLotRequest request)
+    [HttpPut("{id:guid}")]
+    public IActionResult ModifyLotById(Guid id, [FromBody] ModifyLotRequest request)
     {
         try
         {
-            _lotService.ModifyLotById(request);
+            _lotService.ModifyLotById(id, request);
             return NoContent();
         }
         catch (ArgumentException)
@@ -84,7 +87,8 @@ public class LotController : ControllerBase
             return NotFound();
         }
     }
-
+    
+    [HttpDelete("{lotId:guid}")]
     public IActionResult DeleteLotById(Guid lotId)
     {
         try

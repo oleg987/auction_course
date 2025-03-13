@@ -8,7 +8,7 @@ public interface ILotService
     LotResponse LotInfoById(Guid lotId);
     List<LotResponse> GetLotsByAuctionId(Guid auctionId);
     Guid CreateLot(CreateLotRequest request);
-    void ModifyLotById(ModifyLotRequest request);
+    void ModifyLotById(Guid lotId, ModifyLotRequest request);
     void DeleteLotById(Guid lotId);
 }
 
@@ -33,7 +33,7 @@ public class LotService : ILotService
     
     public List<LotResponse> GetLotsByAuctionId(Guid auctionId)
     {
-        if (AuctionService.auctionsStorage.Any(auc => auc.Id == auctionId))
+        if (AuctionService.auctionsStorage.All(auc => auc.Id != auctionId))
         {
             throw new ArgumentException("No auction found");
         }
@@ -44,7 +44,7 @@ public class LotService : ILotService
             .OrderBy(lot => lot.Title)
             .ToList();
 
-        if (lots.Count == 0)
+        if (!lots.Any())
         {
             throw new NullReferenceException("No lots found");
         }
@@ -54,7 +54,7 @@ public class LotService : ILotService
 
     public Guid CreateLot(CreateLotRequest request)
     {
-        if (!AuctionService.auctionsStorage.All(auc => auc.Start > DateTime.Now && auc.Id == request.AuctionId))
+        if (AuctionService.auctionsStorage.All(auc => auc.Start <= DateTime.Now && auc.Id != request.AuctionId))
         {
             throw new ArgumentException("No auction found");
         }
@@ -74,9 +74,20 @@ public class LotService : ILotService
         return lot.Id;
     }
 
-    public void ModifyLotById(ModifyLotRequest request)
+    public void ModifyLotById(Guid lotId, ModifyLotRequest request)
     {
-        var selectedLot = lotsStorage.FirstOrDefault(lot => lot.Id == request.Id);
+        if (request.StartPrice <= 0 || request.PriceStep <= 0)
+        {
+            throw new ArgumentException();
+        }
+
+        if (request.Title.Length < 3 || request.Title.Length > 255 || request.Description.Length < 3 ||
+            request.Description.Length > 255)
+        {
+            throw new ArgumentException();
+        }
+        
+        var selectedLot = lotsStorage.FirstOrDefault(lot => lot.Id == lotId);
 
         if (selectedLot is null)
         {

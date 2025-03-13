@@ -15,13 +15,13 @@ public class User
 }
 
 [ApiController]
-[Route("api/v1/[controller]")]
+[Route("api/v1/[controller]/[action]")]
 public class UserController : ControllerBase
 {
     private readonly IUserService _userService = new UserService();
     
     [HttpPost]
-    public IActionResult Register(RegisterUserRequest request)
+    public IActionResult Signup(RegisterUserRequest request)
     {
         try
         {
@@ -35,7 +35,7 @@ public class UserController : ControllerBase
     }
     
     [HttpPost]
-    public IActionResult Login(LoginUserRequest request)
+    public IActionResult Signin(LoginUserRequest request)
     {
         try
         {
