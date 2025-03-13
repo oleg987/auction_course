@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+using SothbeysKillerApi.Services;
 
 namespace SothbeysKillerApi.Controllers;
 
@@ -20,31 +22,31 @@ public class Auction
 [Route("api/v1/[controller]")]
 public class AuctionController : ControllerBase
 {
-    private static List<Auction> _storage = []; // new List<AuctionCreateRequest>();
+    private readonly IAuctionService _auctionService = new DbAuctionService();
     
     [HttpGet]
     [Route("[action]")]
     public IActionResult Past()
     {
-        return Ok("its alive!");
+        var auctions = _auctionService.GetPastAuctions();
+        
+        return Ok(auctions);
     }
     
     [HttpGet]
     [Route("[action]")]
     public IActionResult Active()
     {
-        return Ok("its alive!");
+        var auctions = _auctionService.GetActiveAuctions();
+        
+        return Ok(auctions);
     }
     
     [HttpGet]
     [Route("[action]")]
     public IActionResult Future()
     {
-        var auctions = _storage
-            .Where(a => a.Start > DateTime.Now)
-            .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
-            .OrderByDescending(a => a.Start)
-            .ToList();
+        var auctions = _auctionService.GetFutureAuctions();
         
         return Ok(auctions);
     }
@@ -52,97 +54,68 @@ public class AuctionController : ControllerBase
     [HttpPost]
     public IActionResult Create(AuctionCreateRequest request)
     {
-        if (request.Title.Length < 3 || request.Title.Length > 255)
+        try
+        {
+            var id = _auctionService.CreateAuction(request);
+            
+            return Ok(new { Id = id });
+        }
+        catch (ArgumentException)
         {
             return BadRequest();
         }
-
-        if (request.Start < DateTime.Now)
-        {
-            return BadRequest();
-        }
-
-        if (request.Finish <= request.Start)
-        {
-            return BadRequest();
-        }
-        
-        var auction = new Auction()
-        {
-            Id = Guid.NewGuid(),
-            Title = request.Title,
-            Start = request.Start,
-            Finish = request.Finish
-        };
-        
-        _storage.Add(auction);
-        
-        return Ok(new { Id = auction.Id });
     }
 
     [HttpGet("{id:guid}")]
     public IActionResult GetById(Guid id)
     {
-        var auction = _storage.FirstOrDefault(a => a.Id == id);
-
-        if (auction is not null)
+        try
         {
-            var response = new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish);
-            
-            return Ok(response);
+            var auction = _auctionService.GetAuctionById(id);
+
+            return Ok(auction);
         }
-        
-        return NotFound();
+        catch (NullReferenceException)
+        {
+            return NotFound();
+        }
     }
 
     [HttpPut("{id:guid}")]
     public IActionResult Update(Guid id, AuctionUpdateRequest request)
     {
-        var auction = _storage.FirstOrDefault(a => a.Id == id);
-        
-        if (auction is null)
+        try
+        {
+            _auctionService.UpdateAuction(id, request);
+
+            return NoContent();
+        }
+        catch (NullReferenceException)
         {
             return NotFound();
         }
-
-        if (auction.Start <= DateTime.Now)
+        catch (ArgumentException)
         {
             return BadRequest();
         }
-        
-        if (request.Start < DateTime.Now)
-        {
-            return BadRequest();
-        }
-
-        if (request.Finish <= request.Start)
-        {
-            return BadRequest();
-        }
-
-        auction.Start = request.Start;
-        auction.Finish = request.Finish;
-        
-        return NoContent();
     }
 
     [HttpDelete("{id:guid}")]
     public IActionResult Delete(Guid id)
     {
-        var auction = _storage.First(a => a.Id == id);
-        
-        if (auction is null)
+        try
+        {
+            _auctionService.DeleteAuction(id);
+
+            return NoContent();
+        }
+        catch (NullReferenceException)
         {
             return NotFound();
         }
-        
-        if (auction.Start <= DateTime.Now)
+        catch (ArgumentException)
         {
             return BadRequest();
         }
-
-        _storage.Remove(auction);
-
-        return NoContent();
     }
 }
