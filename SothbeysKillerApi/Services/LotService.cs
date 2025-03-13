@@ -3,7 +3,16 @@ using SothbeysKillerApi.Controllers;
 
 namespace SothbeysKillerApi.Services;
 
-public class LotService
+public interface ILotService
+{
+    LotResponse LotInfoById(Guid lotId);
+    List<LotResponse> GetLotsByAuctionId(Guid auctionId);
+    Guid CreateLot(CreateLotRequest request);
+    void ModifyLotById(ModifyLotRequest request);
+    void DeleteLotById(Guid lotId);
+}
+
+public class LotService : ILotService
 {
     public static List<Lot> _lotsStorage = [];
     
