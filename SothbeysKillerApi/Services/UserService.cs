@@ -28,6 +28,11 @@ public class UserService : IUserService
         {
             throw new ArgumentException("Password must be between 3 and 255 characters");
         }
+
+        if (usersStorage.Any(u => u.Email == request.Email))
+        {
+            throw new ArgumentException();
+        }
         
         var user = new User()
         {
@@ -50,7 +55,7 @@ public class UserService : IUserService
         
         if (usersStorage.All(u => u.Email != request.Email))
         {
-            throw new UnauthorizedAccessException();
+            throw new ArgumentException();
         }
         
         var user = usersStorage
@@ -60,7 +65,7 @@ public class UserService : IUserService
 
         if (user is null)
         {
-            throw new ArgumentException("Invalid password");
+            throw new UnauthorizedAccessException("Invalid password");
         }
         
         return user;
