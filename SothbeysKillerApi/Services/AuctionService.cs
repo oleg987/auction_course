@@ -52,7 +52,7 @@ public class AuctionService : IAuctionService
 
     public Guid CreateAuction(AuctionCreateRequest request)
     {
-        if (request.Title.Length < 3 || request.Title.Length > 150)
+        if (request.Title.Length < 3 || request.Title.Length > 255)
         {
             throw new ArgumentException();
         }
