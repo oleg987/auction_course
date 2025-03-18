@@ -7,6 +7,7 @@ namespace SothbeysKillerApi.Services;
 
 public class DbAuctionService : IAuctionService
 {
+
     private readonly IDbConnection _dbConnection;
 
     public DbAuctionService()
@@ -23,9 +24,7 @@ public class DbAuctionService : IAuctionService
 
         var auctions = _dbConnection.Query<Auction>(query);
 
-        return auctions
-            .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
-            .ToList();
+        return auctions;
     }
     
     public List<AuctionResponse> GetActiveAuctions()
@@ -36,22 +35,19 @@ public class DbAuctionService : IAuctionService
 
         var auctions = _dbConnection.Query<Auction>(query);
 
-        return auctions
-            .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
-            .ToList();
+        return auctions;
     }
     
     public List<AuctionResponse> GetFutureAuctions()
     {
+
         var query = @"select * from auctions                         
                         where start > current_date
                         order by start desc;";
 
         var auctions = _dbConnection.Query<Auction>(query);
 
-        return auctions
-            .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
-            .ToList();
+        return auctions;
     }
 
     public Guid CreateAuction(AuctionCreateRequest request)
@@ -90,6 +86,7 @@ public class DbAuctionService : IAuctionService
 
     public AuctionResponse GetAuctionById(Guid id)
     {
+
         var query = "select * from auctions where id = @Id;";
 
         try
@@ -113,6 +110,7 @@ public class DbAuctionService : IAuctionService
 
     public void UpdateAuction(Guid id, AuctionUpdateRequest request)
     {
+
         var select = "select * from auctions where id = @Id;";
         
         var auction = _dbConnection.QuerySingleOrDefault<Auction>(select, new { Id = id });
@@ -144,6 +142,7 @@ public class DbAuctionService : IAuctionService
 
     public void DeleteAuction(Guid id)
     {
+
         var select = "select * from auctions where id = @Id;";
         
         var auction = _dbConnection.QuerySingleOrDefault<Auction>(select, new { Id = id });
@@ -157,6 +156,7 @@ public class DbAuctionService : IAuctionService
         {
             throw new ArgumentException();
         }
+
 
         var deleteCommand = "delete from auctions where id = @Id;";
 

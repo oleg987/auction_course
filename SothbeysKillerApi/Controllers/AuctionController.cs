@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using SothbeysKillerApi.Services;
 
 namespace SothbeysKillerApi.Controllers;
@@ -22,6 +21,7 @@ public class Auction
 [Route("api/v1/[controller]")]
 public class AuctionController : ControllerBase
 {
+
     private readonly IAuctionService _auctionService;
 
     public AuctionController(IAuctionService auctionService)
