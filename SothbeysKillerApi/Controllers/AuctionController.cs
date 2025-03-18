@@ -21,7 +21,13 @@ public class Auction
 [Route("api/v1/[controller]")]
 public class AuctionController : ControllerBase
 {
-    private readonly IAuctionService _auctionService = new AuctionService();
+
+    private readonly IAuctionService _auctionService;
+
+    public AuctionController(IAuctionService auctionService)
+    {
+        _auctionService = auctionService;
+    }
     
     [HttpGet]
     [Route("[action]")]
