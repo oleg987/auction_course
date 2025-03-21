@@ -1,27 +1,20 @@
-﻿using System.Data;
-using Dapper;
-using Npgsql;
-using SothbeysKillerApi.Controllers;
+﻿using SothbeysKillerApi.Controllers;
+using SothbeysKillerApi.Repository;
 
 namespace SothbeysKillerApi.Services;
 
 public class DbAuctionService : IAuctionService
 {
-    private readonly IDbConnection _dbConnection;
-
-    public DbAuctionService()
+    private readonly IAuctionRepository _auctionRepository;
+    
+    public DbAuctionService(IAuctionRepository auctionRepository)
     {
-        _dbConnection = new NpgsqlConnection("Server=localhost;Port=5432;Database=auction_db;Username=postgres;Password=123456");
-        _dbConnection.Open();
+        _auctionRepository = auctionRepository;
     }
 
     public List<AuctionResponse> GetPastAuctions()
     {
-        var query = @"select * from auctions                         
-                        where finish < current_date
-                        order by start desc;";
-
-        var auctions = _dbConnection.Query<Auction>(query);
+        var auctions = _auctionRepository.GetPast();
 
         return auctions
             .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
@@ -30,11 +23,7 @@ public class DbAuctionService : IAuctionService
     
     public List<AuctionResponse> GetActiveAuctions()
     {
-        var query = @"select * from auctions                         
-                        where start < current_date and finish > current_date 
-                        order by start desc;";
-
-        var auctions = _dbConnection.Query<Auction>(query);
+        var auctions = _auctionRepository.GetActive();
 
         return auctions
             .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
@@ -43,11 +32,7 @@ public class DbAuctionService : IAuctionService
     
     public List<AuctionResponse> GetFutureAuctions()
     {
-        var query = @"select * from auctions                         
-                        where start > current_date
-                        order by start desc;";
-
-        var auctions = _dbConnection.Query<Auction>(query);
+        var auctions = _auctionRepository.GetFuture();
 
         return auctions
             .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
@@ -60,12 +45,12 @@ public class DbAuctionService : IAuctionService
         {
             throw new ArgumentException();
         }
-
+        
         if (request.Start < DateTime.Now)
         {
             throw new ArgumentException();
         }
-
+        
         if (request.Finish <= request.Start)
         {
             throw new ArgumentException();
@@ -79,43 +64,28 @@ public class DbAuctionService : IAuctionService
             Finish = request.Finish
         };
 
-        // sql injection
-        
-        var command = $@"insert into auctions (id, title, start, finish) values (@Id, @Title, @Start, @Finish) returning id;";
-        
-        var id = _dbConnection.ExecuteScalar<Guid>(command, auction);
+        var created = _auctionRepository.Create(auction);
 
-        return id;
+        return created.Id;
     }
 
     public AuctionResponse GetAuctionById(Guid id)
     {
-        var query = "select * from auctions where id = @Id;";
+        var auction = _auctionRepository.GetById(id);
 
-        try
-        {
-            var auction = _dbConnection.QuerySingleOrDefault<Auction>(query, new { Id = id });
-
-            if (auction is null)
-            {
-                throw new NullReferenceException();
-            }
-            
-            var response = new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish);
-            
-            return response;
-        }
-        catch (Exception e)
+        if (auction is null)
         {
             throw new NullReferenceException();
         }
+            
+        var response = new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish);
+            
+        return response;
     }
 
     public void UpdateAuction(Guid id, AuctionUpdateRequest request)
     {
-        var select = "select * from auctions where id = @Id;";
-        
-        var auction = _dbConnection.QuerySingleOrDefault<Auction>(select, new { Id = id });
+        var auction = _auctionRepository.GetById(id);
         
         if (auction is null)
         {
@@ -137,16 +107,15 @@ public class DbAuctionService : IAuctionService
             throw new ArgumentException();
         }
 
-        var updateCommand = "update auctions set start = @Start, finish = @Finish where id = @Id;";
+        auction.Start = request.Start;
+        auction.Finish = request.Finish;
 
-        _dbConnection.ExecuteScalar(updateCommand, new { Id = id, Start = request.Start, Finish = request.Finish });
+        _auctionRepository.Update(auction);
     }
 
     public void DeleteAuction(Guid id)
     {
-        var select = "select * from auctions where id = @Id;";
-        
-        var auction = _dbConnection.QuerySingleOrDefault<Auction>(select, new { Id = id });
+        var auction = _auctionRepository.GetById(id);
         
         if (auction is null)
         {
@@ -158,8 +127,6 @@ public class DbAuctionService : IAuctionService
             throw new ArgumentException();
         }
 
-        var deleteCommand = "delete from auctions where id = @Id;";
-
-        _dbConnection.ExecuteScalar(deleteCommand, new { Id = id });
+        _auctionRepository.Delete(id);
     }
 }

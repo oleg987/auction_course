@@ -65,10 +65,11 @@ public class AuctionController : ControllerBase
             
             return Ok(new { Id = id });
         }
-        catch (ArgumentException)
+        catch (Exception)
         {
-            return BadRequest();
+            return StatusCode(500, "Oups...");
         }
+        
     }
 
     [HttpGet("{id:guid}")]
