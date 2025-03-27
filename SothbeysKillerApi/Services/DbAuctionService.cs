@@ -5,16 +5,16 @@ namespace SothbeysKillerApi.Services;
 
 public class DbAuctionService : IAuctionService
 {
-    private readonly IAuctionRepository _auctionRepository;
-    
-    public DbAuctionService(IAuctionRepository auctionRepository)
+    private readonly IUnitOfWork _unitOfWork;
+
+    public DbAuctionService(IUnitOfWork unitOfWork)
     {
-        _auctionRepository = auctionRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public List<AuctionResponse> GetPastAuctions()
     {
-        var auctions = _auctionRepository.GetPast();
+        var auctions = _unitOfWork.AuctionRepository.GetPast();
 
         return auctions
             .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
@@ -23,7 +23,7 @@ public class DbAuctionService : IAuctionService
     
     public List<AuctionResponse> GetActiveAuctions()
     {
-        var auctions = _auctionRepository.GetActive();
+        var auctions = _unitOfWork.AuctionRepository.GetActive();
 
         return auctions
             .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
@@ -32,7 +32,7 @@ public class DbAuctionService : IAuctionService
     
     public List<AuctionResponse> GetFutureAuctions()
     {
-        var auctions = _auctionRepository.GetFuture();
+        var auctions = _unitOfWork.AuctionRepository.GetFuture();
 
         return auctions
             .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
@@ -64,14 +64,31 @@ public class DbAuctionService : IAuctionService
             Finish = request.Finish
         };
 
-        var created = _auctionRepository.Create(auction);
+        var created = _unitOfWork.AuctionRepository.Create(auction);
 
-        return created.Id;
+        var historyRecord = new AuctionHistory()
+        {
+            AuctionId = created.Id,
+            CreatedAt = DateTime.Now
+        };
+
+        var historyRecordId = _unitOfWork.AuctionHistoryRepository.Create(historyRecord);
+
+        if (historyRecordId % 2 == 0)
+        {
+            _unitOfWork.Rollback();
+            throw new Exception();
+        }
+        else
+        {
+            _unitOfWork.Commit();
+            return created.Id;
+        }
     }
 
     public AuctionResponse GetAuctionById(Guid id)
     {
-        var auction = _auctionRepository.GetById(id);
+        var auction = _unitOfWork.AuctionRepository.GetById(id);
 
         if (auction is null)
         {
@@ -85,7 +102,7 @@ public class DbAuctionService : IAuctionService
 
     public void UpdateAuction(Guid id, AuctionUpdateRequest request)
     {
-        var auction = _auctionRepository.GetById(id);
+        var auction = _unitOfWork.AuctionRepository.GetById(id);
         
         if (auction is null)
         {
@@ -110,12 +127,14 @@ public class DbAuctionService : IAuctionService
         auction.Start = request.Start;
         auction.Finish = request.Finish;
 
-        _auctionRepository.Update(auction);
+        _unitOfWork.AuctionRepository.Update(auction);
+        
+        _unitOfWork.Commit();
     }
 
     public void DeleteAuction(Guid id)
     {
-        var auction = _auctionRepository.GetById(id);
+        var auction = _unitOfWork.AuctionRepository.GetById(id);
         
         if (auction is null)
         {
@@ -127,6 +146,8 @@ public class DbAuctionService : IAuctionService
             throw new ArgumentException();
         }
 
-        _auctionRepository.Delete(id);
+        _unitOfWork.AuctionRepository.Delete(id);
+        
+        _unitOfWork.Commit();
     }
 }

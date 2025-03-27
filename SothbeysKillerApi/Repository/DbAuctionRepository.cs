@@ -5,17 +5,17 @@ using SothbeysKillerApi.Controllers;
 
 namespace SothbeysKillerApi.Repository;
 
-public class DbAuctionRepository : IAuctionRepository, IDisposable
+// Unit Of Work
+
+public class DbAuctionRepository : IAuctionRepository
 {
     private readonly IDbConnection _dbConnection;
-    private readonly ILogger<DbAuctionRepository> _logger;
+    private readonly IDbTransaction _transaction;
 
-    public DbAuctionRepository(ILogger<DbAuctionRepository> logger)
+    public DbAuctionRepository(IDbConnection connection, IDbTransaction transaction)
     {
-        _logger = logger;
-        _dbConnection = new NpgsqlConnection("Server=localhost;Port=5432;Database=auction_db;Username=postgres;Password=123456");
-        _dbConnection.Open();
-        _logger.LogInformation($"{DateTime.Now}: connection state: {_dbConnection.State}.");
+        _dbConnection = connection;
+        _transaction = transaction;
     }
     
     public IEnumerable<Auction> GetPast()
@@ -24,21 +24,18 @@ public class DbAuctionRepository : IAuctionRepository, IDisposable
                         where finish < current_date
                         order by start desc;";
 
-        var auctions = _dbConnection.Query<Auction>(query);
+        var auctions = _dbConnection.Query<Auction>(query, transaction: _transaction);
 
         return auctions;
     }
 
     public IEnumerable<Auction> GetActive()
     {
-        using var dbConnection = new NpgsqlConnection("Server=localhost;Port=5432;Database=auction_db;Username=postgres;Password=123456");
-
-        
         var query = @"select * from auctions                         
                         where start < current_date and finish > current_date 
                         order by start desc;";
 
-        var auctions = _dbConnection.Query<Auction>(query);
+        var auctions = _dbConnection.Query<Auction>(query, transaction: _transaction);
 
         return auctions;
     }
@@ -49,7 +46,7 @@ public class DbAuctionRepository : IAuctionRepository, IDisposable
                         where start > current_date
                         order by start desc;";
 
-        var auctions = _dbConnection.Query<Auction>(query);
+        var auctions = _dbConnection.Query<Auction>(query, transaction: _transaction);
 
         return auctions;
     }
@@ -58,7 +55,7 @@ public class DbAuctionRepository : IAuctionRepository, IDisposable
     {
         var query = "select * from auctions where id = @Id;";
         
-        var auction = _dbConnection.QuerySingleOrDefault<Auction>(query, new { Id = id });
+        var auction = _dbConnection.QuerySingleOrDefault<Auction>(query, new { Id = id }, transaction: _transaction);
 
         return auction;
     }
@@ -67,8 +64,8 @@ public class DbAuctionRepository : IAuctionRepository, IDisposable
     {
         var command = $@"insert into auctions (id, title, start, finish) values (@Id, @Title, @Start, @Finish) returning *;";
         
-        var auction = _dbConnection.QueryFirst<Auction>(command, entity);
-
+        var auction = _dbConnection.QueryFirst<Auction>(command, entity, transaction: _transaction);
+        
         return auction;
     }
 
@@ -76,7 +73,7 @@ public class DbAuctionRepository : IAuctionRepository, IDisposable
     {
         var updateCommand = "update auctions set start = @Start, finish = @Finish where id = @Id;";
 
-        var auction = _dbConnection.QueryFirst<Auction>(updateCommand, entity);
+        var auction = _dbConnection.QueryFirst<Auction>(updateCommand, entity, transaction: _transaction);
 
         return auction;
     }
@@ -85,14 +82,6 @@ public class DbAuctionRepository : IAuctionRepository, IDisposable
     {
         var deleteCommand = "delete from auctions where id = @Id;";
 
-        _dbConnection.ExecuteScalar(deleteCommand, new { Id = id });
-    }
-
-    public void Dispose()
-    {
-        _logger.LogInformation($"{DateTime.Now}: {nameof(DbAuctionRepository)} disposed.");
-        _dbConnection.Dispose();
-        
-        _logger.LogInformation($"{DateTime.Now}: connection state: {_dbConnection.State}.");
+        _dbConnection.ExecuteScalar(deleteCommand, new { Id = id }, transaction: _transaction);
     }
 }
