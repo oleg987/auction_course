@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using SothbeysKillerApi.Exceptions;
 using SothbeysKillerApi.Services;
 
 namespace SothbeysKillerApi.Controllers;
@@ -59,17 +60,9 @@ public class AuctionController : ControllerBase
     [HttpPost]
     public IActionResult Create(AuctionCreateRequest request)
     {
-        try
-        {
-            var id = _auctionService.CreateAuction(request);
-            
-            return Ok(new { Id = id });
-        }
-        catch (Exception)
-        {
-            return StatusCode(500, "Oups...");
-        }
-        
+        var id = _auctionService.CreateAuction(request);
+
+        return Ok(new { Id = id });
     }
 
     [HttpGet("{id:guid}")]

@@ -1,4 +1,7 @@
-﻿using SothbeysKillerApi.Controllers;
+﻿using Microsoft.EntityFrameworkCore;
+using SothbeysKillerApi.Contexts;
+using SothbeysKillerApi.Controllers;
+using SothbeysKillerApi.Exceptions;
 using SothbeysKillerApi.Repository;
 
 namespace SothbeysKillerApi.Services;
@@ -6,6 +9,7 @@ namespace SothbeysKillerApi.Services;
 public class DbAuctionService : IAuctionService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly AuctionDbContext _auctionDbContext;
 
     public DbAuctionService(IUnitOfWork unitOfWork)
     {
@@ -24,7 +28,7 @@ public class DbAuctionService : IAuctionService
     public List<AuctionResponse> GetActiveAuctions()
     {
         var auctions = _unitOfWork.AuctionRepository.GetActive();
-
+        
         return auctions
             .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
             .ToList();
@@ -43,49 +47,33 @@ public class DbAuctionService : IAuctionService
     {
         if (request.Title.Length < 3 || request.Title.Length > 255)
         {
-            throw new ArgumentException();
+            throw new AuctionValidationException(nameof(request.Title), "Invalid length.");
         }
         
         if (request.Start < DateTime.Now)
         {
-            throw new ArgumentException();
+            throw new AuctionValidationException(nameof(request.Start), "Invalid start.");
         }
         
         if (request.Finish <= request.Start)
         {
-            throw new ArgumentException();
+            throw new AuctionValidationException(nameof(request.Finish), "Invalid finish.");
         }
         
         var auction = new Auction()
         {
-            Id = Guid.NewGuid(),
             Title = request.Title,
             Start = request.Start,
             Finish = request.Finish
         };
 
-        var created = _unitOfWork.AuctionRepository.Create(auction);
+        _auctionDbContext.Type.Add(auction);
 
-        var historyRecord = new AuctionHistory()
-        {
-            AuctionId = created.Id,
-            CreatedAt = DateTime.Now
-        };
-
-        var historyRecordId = _unitOfWork.AuctionHistoryRepository.Create(historyRecord);
-
-        if (historyRecordId % 2 == 0)
-        {
-            _unitOfWork.Rollback();
-            throw new Exception();
-        }
-        else
-        {
-            _unitOfWork.Commit();
-            return created.Id;
-        }
+        _auctionDbContext.SaveChanges();
+        
+        return auction.Id;
     }
-
+    
     public AuctionResponse GetAuctionById(Guid id)
     {
         var auction = _unitOfWork.AuctionRepository.GetById(id);
@@ -102,7 +90,7 @@ public class DbAuctionService : IAuctionService
 
     public void UpdateAuction(Guid id, AuctionUpdateRequest request)
     {
-        var auction = _unitOfWork.AuctionRepository.GetById(id);
+        var auction = _auctionDbContext.Type.FirstOrDefault(a => a.Id == id);
         
         if (auction is null)
         {
@@ -127,14 +115,19 @@ public class DbAuctionService : IAuctionService
         auction.Start = request.Start;
         auction.Finish = request.Finish;
 
-        _unitOfWork.AuctionRepository.Update(auction);
+        _auctionDbContext.Type.Update(auction); // 1
+
+        _auctionDbContext.Entry(auction).State = EntityState.Unchanged;
         
-        _unitOfWork.Commit();
+        auction.Start = request.Start;
+        auction.Finish = request.Finish;
+
+        _auctionDbContext.SaveChanges();
     }
 
     public void DeleteAuction(Guid id)
     {
-        var auction = _unitOfWork.AuctionRepository.GetById(id);
+        var auction = _auctionDbContext.Type.FirstOrDefault(a => a.Id == id);
         
         if (auction is null)
         {
@@ -146,8 +139,8 @@ public class DbAuctionService : IAuctionService
             throw new ArgumentException();
         }
 
-        _unitOfWork.AuctionRepository.Delete(id);
-        
-        _unitOfWork.Commit();
+        _auctionDbContext.Type.Remove(auction);
+
+        _auctionDbContext.SaveChanges();
     }
 }
