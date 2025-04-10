@@ -1,15 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using SothbeysKillerApi.Controllers;
+using SothbeysKillerApi.Entities;
 
 namespace SothbeysKillerApi.Contexts;
 
-public interface IAuctionDbContext
-{
-    DbSet<Auction> Type { get; set; }
-    int SaveChanges();
-}
-
-public class AuctionDbContext : DbContext, IAuctionDbContext
+public class AuctionDbContext : IdentityDbContext<AuctionUser, IdentityRole<Guid>, Guid>
 {
     public AuctionDbContext(DbContextOptions<AuctionDbContext> options) : base(options)
     {
