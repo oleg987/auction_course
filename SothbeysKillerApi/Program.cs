@@ -1,13 +1,16 @@
+using System.Globalization;
 using System.Text;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using SothbeysKillerApi.Constants;
 using SothbeysKillerApi.Contexts;
 using SothbeysKillerApi.Entities;
 using SothbeysKillerApi.ExceptionHandlers;
-using SothbeysKillerApi.Exceptions;
+using SothbeysKillerApi.Infrastructure;
 using SothbeysKillerApi.Repository;
 using SothbeysKillerApi.Services;
 
@@ -48,7 +51,13 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddDbContext<AuctionDbContext>(opt => opt.UseNpgsql(builder.Configuration.GetConnectionString("DB")));
 
-builder.Services.AddTransient<IAuctionService, DbAuctionService>();
+builder.Services.AddTransient<DbAuctionService>();
+
+#if DEBUG
+builder.Services.AddTransient<IAuctionService, AuctionServiceCacheDecorator>();
+#else
+builder.Services.AddTransient<IAuctionService, AuctionServiceCacheDecorator>();
+#endif
 
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
@@ -66,6 +75,10 @@ builder.Services.AddIdentity<AuctionUser, IdentityRole<Guid>>(opt =>
         opt.Password.RequireLowercase = false;
         opt.Password.RequireUppercase = false;
         opt.Password.RequireNonAlphanumeric = false;
+
+        opt.Lockout.MaxFailedAccessAttempts = 3;
+        opt.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(1);
+        opt.Lockout.AllowedForNewUsers = true;
     })
     .AddEntityFrameworkStores<AuctionDbContext>()
     .AddDefaultTokenProviders();
@@ -89,7 +102,52 @@ builder.Services.AddAuthentication(opt =>
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(opt =>
+{
+    opt.AddPolicy(PolicyConstants.AdultOnly40Plus, policy =>
+    {
+        policy.RequireClaim(CustomClaimConstants.UserAge);
+        policy.RequireAssertion(context =>
+        {
+            var age = context.User.Claims
+                .Where(c => c.Type == CustomClaimConstants.UserAge)
+                .Select(c => int.Parse(c.Value))
+                .First();
+
+            if (age >= 40)
+            {
+                return true;
+            }
+            
+            return false;
+        });
+    });
+});
+
+// MemCache
+builder.Services.AddMemoryCache();
+
+builder.Services.AddDistributedMemoryCache();
+
+builder.Services.AddStackExchangeRedisCache(opt =>
+{
+    opt.Configuration = "localhost";
+    opt.ConfigurationOptions = new StackExchange.Redis.ConfigurationOptions()
+    {
+        AbortOnConnectFail = true,
+        EndPoints = { opt.Configuration }
+    };
+});
+
+builder.Services.AddSingleton<IHybridCache, HybridCacheMemoryProvider>();
+
+//builder.Services.AddSingleton<IHybridCache, HybridCacheDistributedProvider>();
+
+ValidatorOptions.Global.LanguageManager.Culture = new CultureInfo("en");
+
+builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
+
+builder.Services.AddAutoMapper(typeof(Program).Assembly);
 
 var app = builder.Build();
 

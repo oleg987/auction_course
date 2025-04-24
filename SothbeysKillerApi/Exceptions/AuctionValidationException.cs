@@ -2,12 +2,11 @@
 
 public class AuctionValidationException : Exception
 {
-    public string Field { get; }
-    public string Description { get; }
-
-    public AuctionValidationException(string field, string description)
+    public IEnumerable<ValidationError> Errors { get; }
+    public AuctionValidationException(IEnumerable<ValidationError> errors)
     {
-        Field = field;
-        Description = description;
+        Errors = errors;
     }
 }
+
+public record ValidationError(string Field, string Description);

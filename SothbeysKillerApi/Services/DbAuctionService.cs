@@ -1,71 +1,53 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using AutoMapper;
+using AutoMapper.QueryableExtensions;
+using FluentValidation;
 using SothbeysKillerApi.Contexts;
 using SothbeysKillerApi.Controllers;
-using SothbeysKillerApi.Exceptions;
-using SothbeysKillerApi.Repository;
+using SothbeysKillerApi.Extensions;
 
 namespace SothbeysKillerApi.Services;
 
+// SOLID
+
+// Single Responsibility Principle
+
+// Decorator
+
 public class DbAuctionService : IAuctionService
 {
-    private readonly IUnitOfWork _unitOfWork;
     private readonly AuctionDbContext _auctionDbContext;
+    private readonly IValidator<Auction> _validator;
+    private readonly IMapper _mapper;
 
-    public DbAuctionService(IUnitOfWork unitOfWork)
+    public DbAuctionService(AuctionDbContext auctionDbContext, IValidator<Auction> validator, IMapper mapper)
     {
-        _unitOfWork = unitOfWork;
+        _auctionDbContext = auctionDbContext;
+        _validator = validator;
+        _mapper = mapper;
     }
 
     public List<AuctionResponse> GetPastAuctions()
     {
-        var auctions = _unitOfWork.AuctionRepository.GetPast();
-
-        return auctions
-            .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
-            .ToList();
+        throw new NotImplementedException();
     }
     
     public List<AuctionResponse> GetActiveAuctions()
     {
-        var auctions = _unitOfWork.AuctionRepository.GetActive();
-        
-        return auctions
-            .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
-            .ToList();
+        throw new NotImplementedException();
     }
     
     public List<AuctionResponse> GetFutureAuctions()
     {
-        var auctions = _unitOfWork.AuctionRepository.GetFuture();
-
-        return auctions
-            .Select(auction => new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish))
-            .ToList();
+        throw new NotImplementedException();
     }
 
     public Guid CreateAuction(AuctionCreateRequest request)
     {
-        if (request.Title.Length < 3 || request.Title.Length > 255)
-        {
-            throw new AuctionValidationException(nameof(request.Title), "Invalid length.");
-        }
+        var auction = _mapper.Map<Auction>(request);
+
+        var validationResult = _validator.Validate(auction);
         
-        if (request.Start < DateTime.Now)
-        {
-            throw new AuctionValidationException(nameof(request.Start), "Invalid start.");
-        }
-        
-        if (request.Finish <= request.Start)
-        {
-            throw new AuctionValidationException(nameof(request.Finish), "Invalid finish.");
-        }
-        
-        var auction = new Auction()
-        {
-            Title = request.Title,
-            Start = request.Start,
-            Finish = request.Finish
-        };
+        validationResult.ThrowIfFail();
 
         _auctionDbContext.Type.Add(auction);
 
@@ -76,16 +58,17 @@ public class DbAuctionService : IAuctionService
     
     public AuctionResponse GetAuctionById(Guid id)
     {
-        var auction = _unitOfWork.AuctionRepository.GetById(id);
+        var auction = _auctionDbContext.Type
+            .Where(a => a.Id == id)
+            .ProjectTo<AuctionResponse>(_mapper.ConfigurationProvider)
+            .FirstOrDefault();
 
         if (auction is null)
         {
             throw new NullReferenceException();
         }
             
-        var response = new AuctionResponse(auction.Id, auction.Title, auction.Start, auction.Finish);
-            
-        return response;
+        return auction;
     }
 
     public void UpdateAuction(Guid id, AuctionUpdateRequest request)
@@ -101,26 +84,15 @@ public class DbAuctionService : IAuctionService
         {
             throw new ArgumentException();
         }
-        
-        if (request.Start < DateTime.Now)
-        {
-            throw new ArgumentException();
-        }
-
-        if (request.Finish <= request.Start)
-        {
-            throw new ArgumentException();
-        }
 
         auction.Start = request.Start;
         auction.Finish = request.Finish;
-
-        _auctionDbContext.Type.Update(auction); // 1
-
-        _auctionDbContext.Entry(auction).State = EntityState.Unchanged;
         
-        auction.Start = request.Start;
-        auction.Finish = request.Finish;
+        var validationResult = _validator.Validate(auction);
+
+        validationResult.ThrowIfFail();
+
+        _auctionDbContext.Type.Update(auction);
 
         _auctionDbContext.SaveChanges();
     }

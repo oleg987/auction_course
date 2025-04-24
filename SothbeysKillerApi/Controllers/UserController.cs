@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using SothbeysKillerApi.Constants;
 using SothbeysKillerApi.Entities;
 
 namespace SothbeysKillerApi.Controllers;
@@ -31,7 +32,7 @@ public class UserController : ControllerBase
         _signInManager = signInManager;
         _logger = logger;
     }
-
+    
     [HttpPost]
     [AllowAnonymous]
     public async Task<IActionResult> SignIn(SignInRequest request, CancellationToken ct)
@@ -43,10 +44,14 @@ public class UserController : ControllerBase
             return Unauthorized();
         }
 
-        var result = await _signInManager.PasswordSignInAsync(user, request.Password, false, false);
-
+        var result = await _signInManager.PasswordSignInAsync(user, request.Password, false, true);
+        
         if (result.Succeeded)
         {
+            var age = Random.Shared.Next(100);
+            
+            _logger.LogInformation($"AGE: {age}");
+            
             var secret = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("qwertyuiopasdfghjklzxcvbnmm123456789"));
             var sign = new SigningCredentials(secret, SecurityAlgorithms.HmacSha256);
             
@@ -54,7 +59,10 @@ public class UserController : ControllerBase
             {
                 new Claim(ClaimTypes.Name, user.FullName),
                 new Claim(ClaimTypes.Email, user.Email!),
-                new Claim("userId", user.Id.ToString())
+                new Claim(CustomClaimConstants.UserId, user.Id.ToString()),
+                new Claim(CustomClaimConstants.UserAge, age.ToString()),
+                new Claim(CustomClaimConstants.UserAge, age.ToString()),
+                new Claim(ClaimTypes.Role, "admin")
             };
 
             var accessTokenLifetime = DateTime.UtcNow.AddMinutes(5);
@@ -95,7 +103,7 @@ public class UserController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Policy = "MyPolicy")]
+    [Authorize(Policy = PolicyConstants.AdultOnly40Plus)]
     public async Task<IActionResult> Profile(CancellationToken ct)
     {
         foreach (var claim in User.Claims)

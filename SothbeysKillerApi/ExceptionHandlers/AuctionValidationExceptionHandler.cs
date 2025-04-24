@@ -12,11 +12,7 @@ public class AuctionValidationExceptionHandler : IExceptionHandler
             httpContext.Response.StatusCode = 400;
 
             await httpContext.Response
-                .WriteAsJsonAsync(new
-                    {
-                        target = ex.Field, 
-                        description = ex.Description
-                    },
+                .WriteAsJsonAsync(ex.Errors,
                 cancellationToken);
 
             return true;
